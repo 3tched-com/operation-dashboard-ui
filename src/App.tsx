@@ -16,6 +16,7 @@ import ConfigPage from "./pages/ConfigPage";
 import InspectorPage from "./pages/InspectorPage";
 import StatePage from "./pages/StatePage";
 import LogsPage from "./pages/LogsPage";
+import WorkflowsPage from "./pages/WorkflowsPage";
 import NotFound from "./pages/NotFound";
 
 const queryClient = new QueryClient({
@@ -38,6 +39,7 @@ function AppInner() {
         <Route path="/inspector" element={<InspectorPage />} />
         <Route path="/state" element={<StatePage />} />
         <Route path="/logs" element={<LogsPage />} />
+        <Route path="/workflows" element={<WorkflowsPage />} />
         <Route path="*" element={<NotFound />} />
       </Routes>
     </AppShell>

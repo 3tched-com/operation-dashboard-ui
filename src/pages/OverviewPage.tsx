@@ -1,5 +1,6 @@
 import { PageHeader, Card, StatCard, Callout, StatusDot } from "@/components/shell/Primitives";
 import { EventTape } from "@/components/json/EventTape";
+import { StateProjectionPanel } from "@/components/json/StateProjectionPanel";
 import { JsonRenderer } from "@/components/json/JsonRenderer";
 import { ResourceGauge } from "@/components/dashboard/ResourceGauge";
 import { EventDistribution } from "@/components/dashboard/EventDistribution";
@@ -178,13 +179,7 @@ export default function OverviewPage() {
       {/* ── Row 4: Event tape + live state ─────────── */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
         <EventTape events={events} />
-        <Card title="Live State" subtitle="Latest state projections by key.">
-          {Object.keys(latestState).length > 0 ? (
-            <JsonRenderer data={latestState} className="mt-2" />
-          ) : (
-            <div className="text-sm text-muted-foreground mt-2 font-mono">No state updates received yet.</div>
-          )}
-        </Card>
+        <StateProjectionPanel state={latestState} />
       </div>
 
       {/* ── Row 5: System stats raw + notes ────────── */}

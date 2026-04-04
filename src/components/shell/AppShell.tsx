@@ -3,7 +3,7 @@ import { useLocation, useNavigate } from "react-router-dom";
 import {
   MessageSquare, BarChart3, Link2, Radio, FileText, Clock,
   Folder, Zap, Monitor, Settings, Bug, ScrollText, Sun, Moon, Laptop,
-  Menu, Shield,
+  Menu, Shield, GitBranch,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { StatusDot, Pill } from "@/components/shell/Primitives";
@@ -30,6 +30,7 @@ const NAV_GROUPS = [
     items: [
       { title: "Agents", path: "/agents", icon: Folder },
       { title: "Tools", path: "/tools", icon: Zap },
+      { title: "Workflows", path: "/workflows", icon: GitBranch },
       { title: "Security", path: "/security", icon: Shield },
     ],
   },
@@ -54,7 +55,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
   const { theme, toggleTheme } = useTheme();
   const { connected, health, lastError } = useEventStore();
 
-  const isChat = location.pathname === "/chat";
+  const isFullHeight = location.pathname === "/chat" || location.pathname === "/workflows";
   const ThemeIcon = themeIcons[theme];
 
   const toggleGroup = (label: string) => {
@@ -197,7 +198,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
       <main
         className={cn(
           "min-h-0 overflow-y-auto overflow-x-hidden p-3 md:p-4 space-y-6",
-          isChat && "flex flex-col overflow-hidden p-0 space-y-0",
+          isFullHeight && "flex flex-col overflow-hidden p-0 space-y-0",
         )}
         style={{ gridArea: "content" }}
       >
