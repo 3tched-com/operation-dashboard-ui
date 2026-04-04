@@ -30,6 +30,7 @@ const NAV_GROUPS = [
     label: "Agent",
     items: [
       { title: "Agents", path: "/agents", icon: Folder },
+      { title: "Routable Models", path: "/models", icon: Radio },
       { title: "Tools", path: "/tools", icon: Zap },
       { title: "Workflows", path: "/workflows", icon: GitBranch },
       { title: "Security", path: "/security", icon: Shield },

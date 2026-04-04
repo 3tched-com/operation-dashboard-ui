@@ -34,6 +34,7 @@ function AppInner() {
         <Route path="/chat" element={<ChatPage />} />
         <Route path="/tools" element={<ToolsPage />} />
         <Route path="/agents" element={<AgentsPage />} />
+        <Route path="/models" element={<RoutableModelsPage />} />
         <Route path="/llm" element={<LlmPage />} />
         <Route path="/services" element={<ServicesPage />} />
         <Route path="/security" element={<SecurityPage />} />

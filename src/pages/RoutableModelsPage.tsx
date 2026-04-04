@@ -17,7 +17,7 @@ export default function AgentsPage() {
 
   return (
     <>
-      <PageHeader title="Agents" subtitle="Manage agent workspaces, tools, and identities." actions={
+      <PageHeader title="Routable Models" subtitle="LLM gateway model routing and configuration." actions={
         <button className="px-4 py-2 rounded-md border border-border bg-[hsl(var(--bg-elevated))] text-sm font-medium hover:bg-muted/30 transition-colors">Refresh</button>
       } />
       <div className="grid grid-cols-1 lg:grid-cols-[280px_1fr] gap-4">
