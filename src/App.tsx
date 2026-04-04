@@ -24,6 +24,7 @@ import ContainersPage from "./pages/ContainersPage";
 import PrivacyNetworkPage from "./pages/PrivacyNetworkPage";
 import OpenSwitchPage from "./pages/OpenSwitchPage";
 import OpenFlowPage from "./pages/OpenFlowPage";
+import KnowledgePage from "./pages/KnowledgePage";
 import NotFound from "./pages/NotFound";
 
 const queryClient = new QueryClient({
