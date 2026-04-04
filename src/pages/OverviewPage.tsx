@@ -1,5 +1,6 @@
 import { PageHeader, Card, StatCard, Callout, StatusDot } from "@/components/shell/Primitives";
 import { EventTape } from "@/components/json/EventTape";
+import { StateProjectionPanel } from "@/components/json/StateProjectionPanel";
 import { JsonRenderer } from "@/components/json/JsonRenderer";
 import { ResourceGauge } from "@/components/dashboard/ResourceGauge";
 import { EventDistribution } from "@/components/dashboard/EventDistribution";
