@@ -57,6 +57,7 @@ function AppInner() {
         <Route path="/ovs" element={<OpenSwitchPage />} />
             <Route path="/openflow" element={<OpenFlowPage />} />
             <Route path="/knowledge" element={<KnowledgePage />} />
+            <Route path="/grpc" element={<GrpcDiagnosticsPage />} />
             <Route path="*" element={<NotFound />} />
       </Routes>
     </AppShell>
