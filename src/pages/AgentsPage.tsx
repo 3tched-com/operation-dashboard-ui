@@ -1,7 +1,8 @@
-import { useState } from "react";
+import { useState, useMemo } from "react";
 import { PageHeader, Card, Pill, StatCard, StatusDot } from "@/components/shell/Primitives";
 import { SchemaRenderer } from "@/components/json/SchemaRenderer";
 import { Badge } from "@/components/ui/badge";
+import { useEventStore } from "@/stores/event-store";
 import {
   Dialog,
   DialogContent,
