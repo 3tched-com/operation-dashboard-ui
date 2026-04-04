@@ -1,14 +1,19 @@
+import { useMemo, useState } from "react";
 import { PageHeader, Card, StatCard, Callout, StatusDot } from "@/components/shell/Primitives";
 import { EventTape } from "@/components/json/EventTape";
 import { StateProjectionPanel } from "@/components/json/StateProjectionPanel";
 import { JsonRenderer } from "@/components/json/JsonRenderer";
 import { ResourceGauge } from "@/components/dashboard/ResourceGauge";
 import { EventDistribution } from "@/components/dashboard/EventDistribution";
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
+import { Badge } from "@/components/ui/badge";
+import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
 import { useEventStore } from "@/stores/event-store";
 import {
   Activity, Server, Cpu, HardDrive, MemoryStick, Network,
-  Layers, Bot, MessageSquare, Shield, Wrench, Clock,
+  Layers, Bot, MessageSquare, Shield, Wrench, Clock, ChevronRight, Users,
 } from "lucide-react";
+import { cn } from "@/lib/utils";
 
 function formatUptime(ms: number): string {
   const s = Math.floor(ms / 1000);
