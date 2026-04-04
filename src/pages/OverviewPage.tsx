@@ -282,7 +282,16 @@ export default function OverviewPage() {
         </Card>
       </div>
 
-      {/* Row 6: Operational notes */}
+      {/* Row 6: Live Registry Widgets */}
+      <Card title="Live Registry" subtitle="Schema-driven widgets bound to live state keys.">
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mt-3">
+          {LIVE_WIDGETS.map((w, i) => (
+            <WidgetHost key={i} widget={w} />
+          ))}
+        </div>
+      </Card>
+
+      {/* Row 7: Operational notes */}
       <Card title="Operational Notes">
         <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mt-2">
           <div className="rounded-md border border-border bg-background/50 p-3">
