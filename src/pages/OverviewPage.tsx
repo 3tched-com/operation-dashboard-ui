@@ -75,9 +75,21 @@ const MOCK_METRICS = {
   alertsCritical: 0,
 };
 
+const LIVE_WIDGETS: Widget[] = [
+  { type: "kpi", title: "Load Average", bindingKey: "dinit:/system/core:load_avg", unit: "" },
+  { type: "kpi", title: "Active Services", bindingKey: "dinit:/system/core:active_services" },
+  { type: "kpi", title: "OVS Ports", bindingKey: "ovs:/bridges/br0:port_count" },
+  { type: "system_stats" },
+  { type: "timeseries", title: "Load Average", bindingKey: "dinit:/system/core:load_avg", color: "hsl(var(--primary))" },
+  { type: "timeseries", title: "Active Services", bindingKey: "dinit:/system/core:active_services", color: "hsl(var(--ok))" },
+];
+
 export default function OverviewPage() {
   const { connected, health, events, latestState, latestStats, lastError, eventCounts, logs } = useEventStore();
   const [clock, setClock] = useState(new Date());
+
+  // Start mock stream simulator
+  useMockGrpcStream();
 
   useEffect(() => {
     const t = setInterval(() => setClock(new Date()), 1000);
