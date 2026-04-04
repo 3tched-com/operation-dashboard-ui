@@ -9,6 +9,9 @@ import {
   Shield, Clock, Zap, Database, Radio, Layers, RefreshCw,
   ArrowUpRight, ArrowDownRight, Minus
 } from "lucide-react";
+import { WidgetHost } from "@/components/widgets/WidgetHost";
+import { useMockGrpcStream } from "@/hooks/use-mock-grpc-stream";
+import type { Widget } from "@/types/widgets";
 
 function formatUptime(ms: number): string {
   const s = Math.floor(ms / 1000);
