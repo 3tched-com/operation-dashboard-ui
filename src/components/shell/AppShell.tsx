@@ -55,7 +55,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
   const { theme, toggleTheme } = useTheme();
   const { connected, health, lastError } = useEventStore();
 
-  const isChat = location.pathname === "/chat";
+  const isFullHeight = location.pathname === "/chat" || location.pathname === "/workflows";
   const ThemeIcon = themeIcons[theme];
 
   const toggleGroup = (label: string) => {
