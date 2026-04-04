@@ -1,7 +1,8 @@
-import { useState } from "react";
+import { useState, useMemo } from "react";
 import { PageHeader, Card, Pill, StatCard, StatusDot } from "@/components/shell/Primitives";
 import { SchemaRenderer } from "@/components/json/SchemaRenderer";
 import { Badge } from "@/components/ui/badge";
+import { useEventStore } from "@/stores/event-store";
 import {
   Dialog,
   DialogContent,
@@ -137,14 +138,32 @@ const STATUS_PILL: Record<CognitiveAgent["status"], "ok" | "warn" | "danger" | "
 };
 
 export default function AgentsPage() {
+  const latestState = useEventStore((s) => s.latestState);
   const [configAgent, setConfigAgent] = useState<CognitiveAgent | null>(null);
   const [configs, setConfigs] = useState<Record<string, Record<string, unknown>>>(
     Object.fromEntries(COGNITIVE_AGENTS.map((a) => [a.id, { ...a.configData }]))
   );
 
-  const running = COGNITIVE_AGENTS.filter((a) => a.status === "running").length;
-  const totalSessions = COGNITIVE_AGENTS.reduce((s, a) => s + a.activeSessions, 0);
-  const totalMemory = COGNITIVE_AGENTS.reduce((s, a) => s + a.memoryEntries, 0);
+  // Merge live state into agent definitions
+  const agents = useMemo(() => {
+    return COGNITIVE_AGENTS.map((agent) => {
+      const liveData = latestState[`agent.${agent.id}`] ?? latestState[`agents:${agent.id}`];
+      if (liveData && typeof liveData === "object") {
+        const live = liveData as Record<string, unknown>;
+        return {
+          ...agent,
+          status: (live.status as CognitiveAgent["status"]) ?? agent.status,
+          activeSessions: (live.activeSessions as number) ?? (live.active_sessions as number) ?? agent.activeSessions,
+          memoryEntries: (live.memoryEntries as number) ?? (live.memory_entries as number) ?? agent.memoryEntries,
+        };
+      }
+      return agent;
+    });
+  }, [latestState]);
+
+  const running = agents.filter((a) => a.status === "running").length;
+  const totalSessions = agents.reduce((s, a) => s + a.activeSessions, 0);
+  const totalMemory = agents.reduce((s, a) => s + a.memoryEntries, 0);
 
   return (
     <>
@@ -168,7 +187,7 @@ export default function AgentsPage() {
 
       {/* Agent grid */}
       <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">
-        {COGNITIVE_AGENTS.map((agent) => (
+        {agents.map((agent) => (
           <Card key={agent.id}>
             <div className="flex items-start gap-3">
               <StatusDot status={STATUS_DOT[agent.status]} className="mt-1.5" />

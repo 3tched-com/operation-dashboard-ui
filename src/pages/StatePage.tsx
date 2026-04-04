@@ -129,29 +129,29 @@ const PLUGIN_DEFS: PluginDef[] = [
   },
 ];
 
-/* ── Mock state data per plugin ────────────────────────── */
+/* ── Default/fallback state data per plugin ────────────── */
 
-const MOCK_STATE: Record<string, Record<string, unknown>> = {
+const DEFAULT_STATE: Record<string, Record<string, unknown>> = {
   net: {
-    interface: "eth0", ip_address: "10.0.0.42", mac_address: "02:42:ac:11:00:02",
-    mtu: 1500, dhcp_enabled: true, ipv6_enabled: false, dns_servers: "1.1.1.1, 8.8.8.8",
-    rx_bytes: 1482947123, tx_bytes: 298471023, link_speed_mbps: 1000,
+    interface: "eth0", ip_address: "—", mac_address: "—",
+    mtu: 0, dhcp_enabled: false, ipv6_enabled: false, dns_servers: "",
+    rx_bytes: 0, tx_bytes: 0, link_speed_mbps: 0,
   },
   dinit: {
-    active_services: 14, failed_services: 1, uptime_secs: 847291,
+    active_services: 0, failed_services: 0, uptime_secs: 0,
     restart_policy: "on-failure", log_level: "info", watchdog_interval_s: 30,
   },
   wireguard: {
-    enabled: true, public_key: "aGVsbG8gd29ybGQ=", endpoint: "vpn.example.com:51820",
-    listen_port: 51820, persistent_keepalive: 25, connected_peers: 3, last_handshake: "2026-04-04T10:32:00Z",
+    enabled: false, public_key: "", endpoint: "",
+    listen_port: 51820, persistent_keepalive: 25, connected_peers: 0, last_handshake: "—",
   },
   dbus: {
-    system_bus_active: true, session_bus_active: true, registered_services: 47,
-    trace_enabled: false, max_message_size: 16777216, messages_per_sec: 342,
+    system_bus_active: false, session_bus_active: false, registered_services: 0,
+    trace_enabled: false, max_message_size: 16777216, messages_per_sec: 0,
   },
   system: {
-    cpu_percent: 23.4, memory_used_mb: 3241, memory_total_mb: 8192,
-    disk_used_percent: 67, load_avg_1m: 1.24, processes: 189,
+    cpu_percent: 0, memory_used_mb: 0, memory_total_mb: 0,
+    disk_used_percent: 0, load_avg_1m: 0, processes: 0,
   },
 };
 
@@ -281,33 +281,42 @@ export default function StatePage() {
   const { latestState, events } = useEventStore();
   const [search, setSearch] = useState("");
   const [expandedPlugins, setExpandedPlugins] = useState<Record<string, boolean>>({ net: true });
-  const [pluginState, setPluginState] = useState<Record<string, Record<string, unknown>>>(MOCK_STATE);
+  const [localOverrides, setLocalOverrides] = useState<Record<string, Record<string, unknown>>>({});
 
   const stateUpdates = useMemo(
     () => events.filter((e) => e.event === "state_update"),
     [events]
   );
 
-  // Merge live SSE state into plugin state
+  // Build plugin state: live store data → local overrides → defaults
   const mergedPluginState = useMemo(() => {
-    const merged = { ...pluginState };
-    for (const [key, value] of Object.entries(latestState)) {
-      // Try to map flat keys like "net:eth0:mtu" into plugin groups
-      const parts = key.split(":");
-      const pluginId = parts[0];
-      if (merged[pluginId] && parts.length >= 3) {
-        merged[pluginId] = { ...merged[pluginId], [parts[2]]: value };
+    const merged: Record<string, Record<string, unknown>> = {};
+    for (const plugin of PLUGIN_DEFS) {
+      const defaults = DEFAULT_STATE[plugin.id] ?? {};
+      // Pull live values: keys like "net.mtu", "net.ip_address", or "net:mtu"
+      const live: Record<string, unknown> = {};
+      for (const [key, value] of Object.entries(latestState)) {
+        const dotParts = key.split(".");
+        const colonParts = key.split(":");
+        if (dotParts[0] === plugin.id && dotParts.length >= 2) {
+          live[dotParts.slice(1).join(".")] = value;
+        } else if (colonParts[0] === plugin.id && colonParts.length >= 2) {
+          live[colonParts.slice(1).join(":")] = value;
+        } else if (key === plugin.id && typeof value === "object" && value !== null) {
+          Object.assign(live, value as Record<string, unknown>);
+        }
       }
+      merged[plugin.id] = { ...defaults, ...live, ...(localOverrides[plugin.id] ?? {}) };
     }
     return merged;
-  }, [pluginState, latestState]);
+  }, [latestState, localOverrides]);
 
   const togglePlugin = useCallback((id: string) => {
     setExpandedPlugins((prev) => ({ ...prev, [id]: !prev[id] }));
   }, []);
 
   const handlePluginChange = useCallback((pluginId: string, updated: unknown) => {
-    setPluginState((prev) => ({
+    setLocalOverrides((prev) => ({
       ...prev,
       [pluginId]: updated as Record<string, unknown>,
     }));

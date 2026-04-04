@@ -4,6 +4,7 @@ import { SchemaRenderer } from "@/components/json/SchemaRenderer";
 import { Badge } from "@/components/ui/badge";
 import { Switch } from "@/components/ui/switch";
 import { Input } from "@/components/ui/input";
+import { useEventStore } from "@/stores/event-store";
 import {
   Dialog,
   DialogContent,
@@ -149,8 +150,23 @@ const INITIAL_SKILLS: Skill[] = [
 /* ── Component ─────────────────────────────────────────── */
 
 export default function SkillsPage() {
-  const [skills, setSkills] = useState<Skill[]>(INITIAL_SKILLS);
+  const latestState = useEventStore((s) => s.latestState);
+  const [skillOverrides, setSkillOverrides] = useState<Record<string, Partial<Skill>>>({});
   const [selectedId, setSelectedId] = useState<string>(INITIAL_SKILLS[0].id);
+
+  // Merge live state into skill definitions
+  const skills = useMemo(() => {
+    return INITIAL_SKILLS.map((skill) => {
+      const liveData = latestState[`skill.${skill.id}`] ?? latestState[`skills:${skill.id}`];
+      const overrides = skillOverrides[skill.id] ?? {};
+      const live = (liveData && typeof liveData === "object") ? liveData as Record<string, unknown> : {};
+      return {
+        ...skill,
+        enabled: (overrides.enabled ?? live.enabled ?? skill.enabled) as boolean,
+        configData: { ...skill.configData, ...(live.config as Record<string, unknown> ?? {}), ...(overrides.configData ?? {}) },
+      };
+    });
+  }, [latestState, skillOverrides]);
   const [search, setSearch] = useState("");
   const [testOpen, setTestOpen] = useState(false);
   const [testInput, setTestInput] = useState("");
@@ -169,13 +185,17 @@ export default function SkillsPage() {
   const selected = skills.find((s) => s.id === selectedId);
 
   const toggleEnabled = (id: string) => {
-    setSkills((prev) => prev.map((s) => (s.id === id ? { ...s, enabled: !s.enabled } : s)));
+    setSkillOverrides((prev) => ({
+      ...prev,
+      [id]: { ...prev[id], enabled: !(skills.find((s) => s.id === id)?.enabled ?? false) },
+    }));
   };
 
   const updateConfig = (id: string, data: unknown) => {
-    setSkills((prev) =>
-      prev.map((s) => (s.id === id ? { ...s, configData: data as Record<string, unknown> } : s))
-    );
+    setSkillOverrides((prev) => ({
+      ...prev,
+      [id]: { ...prev[id], configData: data as Record<string, unknown> },
+    }));
   };
 
   const handleTestSend = () => {
