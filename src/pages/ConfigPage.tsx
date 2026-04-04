@@ -85,15 +85,6 @@ const SECTION_SCHEMAS: Record<string, Record<string, unknown>> = {
   },
 };
 
-const DEFAULT_VALUES: Record<string, Record<string, unknown>> = {
-  general: { log_level: "info", data_dir: "/var/lib/operation-dbus", pid_file: "/run/operation-dbus.pid", telemetry_enabled: true, max_workers: 8 },
-  dbus: { system_bus: true, session_bus: false, bus_address: "unix:path=/var/run/dbus/system_bus_socket", introspection_cache: true, trace_signals: true, trace_buffer_size: 10000, sampling_rate: 50 },
-  llm: { default_model: "gpt-4o", temperature: 0.7, max_tokens: 8192, streaming: true, rate_limit_rpm: 60, fallback_model: "gpt-4o-mini" },
-  agents: { max_concurrent: 5, session_timeout: 3600, memory_backend: "qdrant", auto_restart: true, heartbeat_interval: 30, max_context_window: 128000 },
-  security: { auth_mode: "wireguard", tls_enabled: true, tls_cert_path: "/etc/ssl/certs/op-dbus.pem", tls_key_path: "/etc/ssl/private/op-dbus.key", audit_chain: true, exec_approval: true, allowed_cidrs: "100.64.0.0/10, 10.10.0.0/24" },
-  network: { listen_addr: "127.0.0.1:18789", ws_enabled: true, sse_enabled: true, cors_origin: "*", proxy_protocol: false, max_connections: 1000, idle_timeout: 300 },
-};
-
 export default function ConfigPage() {
   const { latestState } = useEventStore();
   const [activeSection, setActiveSection] = useState("general");
@@ -102,9 +93,8 @@ export default function ConfigPage() {
 
   const sectionData = useMemo(() => {
     const live = latestState[`config.${activeSection}`] ?? latestState[`config:${activeSection}`];
-    const base = DEFAULT_VALUES[activeSection] ?? {};
-    const liveOverlay = live && typeof live === "object" ? (live as Record<string, unknown>) : {};
-    return { ...base, ...liveOverlay, ...(localValues[activeSection] ?? {}) };
+    const liveData = live && typeof live === "object" ? (live as Record<string, unknown>) : {};
+    return { ...liveData, ...(localValues[activeSection] ?? {}) };
   }, [activeSection, latestState, localValues]);
 
   const rawValue = useMemo(() => JSON.stringify(sectionData, null, 2), [sectionData]);
