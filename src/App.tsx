@@ -54,8 +54,9 @@ function AppInner() {
         <Route path="/containers" element={<ContainersPage />} />
         <Route path="/privacy-network" element={<PrivacyNetworkPage />} />
         <Route path="/ovs" element={<OpenSwitchPage />} />
-        <Route path="/openflow" element={<OpenFlowPage />} />
-        <Route path="*" element={<NotFound />} />
+            <Route path="/openflow" element={<OpenFlowPage />} />
+            <Route path="/knowledge" element={<KnowledgePage />} />
+            <Route path="*" element={<NotFound />} />
       </Routes>
     </AppShell>
   );
