@@ -20,6 +20,10 @@ import LogsPage from "./pages/LogsPage";
 import WorkflowsPage from "./pages/WorkflowsPage";
 import OrchestrationPage from "./pages/OrchestrationPage";
 import SkillsPage from "./pages/SkillsPage";
+import ContainersPage from "./pages/ContainersPage";
+import PrivacyNetworkPage from "./pages/PrivacyNetworkPage";
+import OpenSwitchPage from "./pages/OpenSwitchPage";
+import OpenFlowPage from "./pages/OpenFlowPage";
 import NotFound from "./pages/NotFound";
 
 const queryClient = new QueryClient({
@@ -46,6 +50,10 @@ function AppInner() {
         <Route path="/workflows" element={<WorkflowsPage />} />
         <Route path="/orchestration" element={<OrchestrationPage />} />
         <Route path="/skills" element={<SkillsPage />} />
+        <Route path="/containers" element={<ContainersPage />} />
+        <Route path="/privacy-network" element={<PrivacyNetworkPage />} />
+        <Route path="/ovs" element={<OpenSwitchPage />} />
+        <Route path="/openflow" element={<OpenFlowPage />} />
         <Route path="*" element={<NotFound />} />
       </Routes>
     </AppShell>

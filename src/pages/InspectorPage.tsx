@@ -1,60 +1,249 @@
-import { useState } from "react";
+import { useState, useMemo } from "react";
 import { PageHeader, Card } from "@/components/shell/Primitives";
-import { JsonRenderer } from "@/components/json/JsonRenderer";
+import { SchemaRenderer } from "@/components/json/SchemaRenderer";
 import { EventTape } from "@/components/json/EventTape";
 import { useEventStore } from "@/stores/event-store";
+import { Badge } from "@/components/ui/badge";
+import { ScrollArea } from "@/components/ui/scroll-area";
+import { ChevronRight, FolderTree, Play, FileCode2 } from "lucide-react";
+import { cn } from "@/lib/utils";
+
+interface DbusObject {
+  path: string;
+  interfaces: DbusInterface[];
+}
+
+interface DbusInterface {
+  name: string;
+  methods: DbusMethod[];
+  properties: Record<string, { type: string; access: "read" | "readwrite"; value: unknown }>;
+  signals: string[];
+}
+
+interface DbusMethod {
+  name: string;
+  args: { name: string; type: string; direction: "in" | "out" }[];
+}
+
+const DBUS_SIG_LABELS: Record<string, string> = { s: "string", b: "boolean", i: "int32", u: "uint32", d: "double", a: "array", o: "object_path" };
+
+const DEFAULT_TREE: DbusObject[] = [
+  { path: "/org/freedesktop/NetworkManager", interfaces: [
+    { name: "org.freedesktop.NetworkManager", methods: [
+      { name: "GetDevices", args: [{ name: "devices", type: "ao", direction: "out" }] },
+      { name: "ActivateConnection", args: [{ name: "connection", type: "o", direction: "in" }, { name: "device", type: "o", direction: "in" }, { name: "specific_object", type: "o", direction: "in" }, { name: "active_connection", type: "o", direction: "out" }] },
+      { name: "Enable", args: [{ name: "enable", type: "b", direction: "in" }] },
+    ], properties: { State: { type: "u", access: "read", value: 70 }, Connectivity: { type: "u", access: "read", value: 4 }, WirelessEnabled: { type: "b", access: "readwrite", value: true }, Version: { type: "s", access: "read", value: "1.44.2" } }, signals: ["StateChanged", "DeviceAdded"] },
+  ] },
+  { path: "/org/freedesktop/systemd1", interfaces: [
+    { name: "org.freedesktop.systemd1.Manager", methods: [
+      { name: "StartUnit", args: [{ name: "name", type: "s", direction: "in" }, { name: "mode", type: "s", direction: "in" }, { name: "job", type: "o", direction: "out" }] },
+      { name: "StopUnit", args: [{ name: "name", type: "s", direction: "in" }, { name: "mode", type: "s", direction: "in" }, { name: "job", type: "o", direction: "out" }] },
+      { name: "RestartUnit", args: [{ name: "name", type: "s", direction: "in" }, { name: "mode", type: "s", direction: "in" }, { name: "job", type: "o", direction: "out" }] },
+      { name: "ListUnits", args: [{ name: "units", type: "a(ssssssouso)", direction: "out" }] },
+    ], properties: { Version: { type: "s", access: "read", value: "255.4" }, Architecture: { type: "s", access: "read", value: "x86-64" }, Virtualization: { type: "s", access: "read", value: "container" } }, signals: ["UnitNew", "UnitRemoved", "JobNew"] },
+  ] },
+  { path: "/org/freedesktop/login1", interfaces: [
+    { name: "org.freedesktop.login1.Manager", methods: [
+      { name: "ListSessions", args: [{ name: "sessions", type: "a(susso)", direction: "out" }] },
+      { name: "PowerOff", args: [{ name: "interactive", type: "b", direction: "in" }] },
+      { name: "Reboot", args: [{ name: "interactive", type: "b", direction: "in" }] },
+    ], properties: { Docked: { type: "b", access: "read", value: false }, IdleHint: { type: "b", access: "read", value: false }, NAutoVTs: { type: "u", access: "read", value: 6 } }, signals: ["SessionNew", "SessionRemoved"] },
+  ] },
+];
+
+function methodSchema(method: DbusMethod): Record<string, unknown> {
+  const inArgs = method.args.filter((a) => a.direction === "in");
+  const props: Record<string, unknown> = {};
+  for (const arg of inArgs) {
+    const baseType = arg.type.replace(/^a/, "");
+    if (baseType === "b") props[arg.name] = { type: "boolean", title: `${arg.name} (${DBUS_SIG_LABELS[baseType] ?? arg.type})` };
+    else if (["i", "u", "d"].includes(baseType)) props[arg.name] = { type: "number", title: `${arg.name} (${DBUS_SIG_LABELS[baseType] ?? arg.type})` };
+    else props[arg.name] = { type: "string", title: `${arg.name} (${DBUS_SIG_LABELS[baseType] ?? arg.type})` };
+  }
+  return { type: "object", properties: props };
+}
+
+function propertySchema(properties: DbusInterface["properties"]): { schema: Record<string, unknown>; data: Record<string, unknown>; mutableKeys: Set<string> } {
+  const props: Record<string, unknown> = {};
+  const data: Record<string, unknown> = {};
+  const mutableKeys = new Set<string>();
+  for (const [k, v] of Object.entries(properties)) {
+    data[k] = v.value;
+    if (v.access === "readwrite") mutableKeys.add(k);
+    if (v.type === "b") props[k] = { type: "boolean", title: k, readOnly: v.access === "read" };
+    else if (["i", "u", "d"].includes(v.type)) props[k] = { type: "number", title: k, readOnly: v.access === "read" };
+    else props[k] = { type: "string", title: k, readOnly: v.access === "read" };
+  }
+  return { schema: { type: "object", properties: props }, data, mutableKeys };
+}
 
 export default function InspectorPage() {
-  const { events, health, latestStats } = useEventStore();
-  const [callMethod, setCallMethod] = useState("");
-  const [callParams, setCallParams] = useState("{}");
-  const [callResult, setCallResult] = useState<string | null>(null);
-  const [callError, setCallError] = useState<string | null>(null);
+  const { events, latestState } = useEventStore();
+  const [selectedPath, setSelectedPath] = useState<string | null>(null);
+  const [selectedIface, setSelectedIface] = useState<string | null>(null);
+  const [methodArgs, setMethodArgs] = useState<Record<string, Record<string, unknown>>>({});
+  const [callResults, setCallResults] = useState<Record<string, unknown>>({});
+  const [expandedPaths, setExpandedPaths] = useState<Set<string>>(new Set([DEFAULT_TREE[0]?.path]));
 
-  const handleCall = () => {
-    try {
-      JSON.parse(callParams);
-      setCallResult(JSON.stringify({ method: callMethod, result: "Simulated RPC response", ts: Date.now() }, null, 2));
-      setCallError(null);
-    } catch { setCallError("Invalid JSON params"); setCallResult(null); }
+  const tree = useMemo(() => {
+    const live = latestState["dbus.tree"] ?? latestState["inspector:tree"];
+    if (Array.isArray(live)) return live as DbusObject[];
+    return DEFAULT_TREE;
+  }, [latestState]);
+
+  const selectedObj = tree.find((o) => o.path === selectedPath);
+  const activeIface = selectedObj?.interfaces.find((i) => i.name === selectedIface) ?? selectedObj?.interfaces[0];
+
+  const togglePath = (path: string) => {
+    setExpandedPaths((prev) => {
+      const next = new Set(prev);
+      next.has(path) ? next.delete(path) : next.add(path);
+      return next;
+    });
+  };
+
+  const handleExecute = (method: DbusMethod) => {
+    const args = methodArgs[method.name] ?? {};
+    setCallResults((p) => ({ ...p, [method.name]: { status: "ok", result: `Simulated call: ${method.name}(${JSON.stringify(args)})`, ts: Date.now() } }));
   };
 
   return (
     <>
-      <PageHeader title="Inspector" subtitle="Gateway snapshots, events, and manual RPC calls." />
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-        <Card title="Snapshots" subtitle="Status, health, and heartbeat data." actions={
-          <button className="px-3 py-1.5 rounded-md border border-border text-xs font-medium hover:bg-muted/30 transition-colors">Refresh</button>
-        }>
-          <div className="space-y-3 mt-3">
-            <div><div className="text-xs text-muted-foreground mb-1">Health</div>
-              <pre className="font-mono text-xs bg-muted/30 rounded-md p-3 overflow-auto max-h-48 whitespace-pre-wrap">{JSON.stringify(health ?? {}, null, 2)}</pre>
-            </div>
-            <div><div className="text-xs text-muted-foreground mb-1">Latest Stats</div>
-              <pre className="font-mono text-xs bg-muted/30 rounded-md p-3 overflow-auto max-h-48 whitespace-pre-wrap">{JSON.stringify(latestStats ?? {}, null, 2)}</pre>
-            </div>
-          </div>
-        </Card>
+      <PageHeader title="D-Bus Inspector" subtitle="Hierarchical object browser with method execution." />
 
-        <Card title="Manual RPC" subtitle="Send a raw gateway method with JSON params.">
-          <div className="grid grid-cols-1 gap-3 mt-3">
-            <label className="space-y-1.5">
-              <span className="text-xs font-medium text-muted-foreground">Method</span>
-              <input value={callMethod} onChange={(e) => setCallMethod(e.target.value)} placeholder="system-presence"
-                className="w-full px-3 py-2 rounded-md border border-input bg-card text-sm font-mono focus:border-ring outline-none" />
-            </label>
-            <label className="space-y-1.5">
-              <span className="text-xs font-medium text-muted-foreground">Params (JSON)</span>
-              <textarea value={callParams} onChange={(e) => setCallParams(e.target.value)} rows={4}
-                className="w-full px-3 py-2 rounded-md border border-input bg-card text-sm font-mono focus:border-ring outline-none resize-y" />
-            </label>
+      <div className="grid grid-cols-1 lg:grid-cols-[320px_1fr] gap-4" style={{ minHeight: "calc(100vh - 200px)" }}>
+        {/* Left: Tree */}
+        <div className="rounded-lg border border-border bg-card overflow-hidden flex flex-col">
+          <div className="px-3 py-2 border-b border-border">
+            <span className="text-[11px] font-medium text-muted-foreground uppercase tracking-wider">Object Tree</span>
           </div>
-          <button onClick={handleCall} className="mt-3 px-4 py-2 rounded-md bg-primary text-primary-foreground text-sm font-medium hover:bg-primary/90 transition-colors">Call</button>
-          {callError && <div className="mt-3 rounded-lg border border-danger/20 bg-danger/10 text-danger text-sm px-4 py-2">{callError}</div>}
-          {callResult && <pre className="mt-3 font-mono text-xs bg-muted/30 rounded-md p-3 overflow-auto max-h-48 whitespace-pre-wrap">{callResult}</pre>}
-        </Card>
+          <ScrollArea className="flex-1">
+            <div className="p-2 space-y-0.5">
+              {tree.map((obj) => (
+                <div key={obj.path}>
+                  <button
+                    onClick={() => { togglePath(obj.path); setSelectedPath(obj.path); setSelectedIface(obj.interfaces[0]?.name ?? null); }}
+                    className={cn(
+                      "w-full flex items-center gap-1.5 px-2 py-1.5 rounded-md text-xs font-mono transition-colors",
+                      selectedPath === obj.path ? "bg-primary/10 text-foreground" : "text-muted-foreground hover:bg-muted/30 hover:text-foreground"
+                    )}
+                  >
+                    <ChevronRight className={cn("h-3 w-3 shrink-0 transition-transform", expandedPaths.has(obj.path) && "rotate-90")} />
+                    <FolderTree className="h-3.5 w-3.5 shrink-0 text-primary" />
+                    <span className="truncate">{obj.path}</span>
+                  </button>
+                  {expandedPaths.has(obj.path) && (
+                    <div className="ml-6 space-y-0.5 mt-0.5">
+                      {obj.interfaces.map((iface) => (
+                        <button
+                          key={iface.name}
+                          onClick={() => { setSelectedPath(obj.path); setSelectedIface(iface.name); }}
+                          className={cn(
+                            "w-full flex items-center gap-1.5 px-2 py-1 rounded text-[11px] font-mono transition-colors",
+                            selectedIface === iface.name && selectedPath === obj.path ? "bg-primary/10 text-primary" : "text-muted-foreground hover:text-foreground hover:bg-muted/20"
+                          )}
+                        >
+                          <FileCode2 className="h-3 w-3 shrink-0" />
+                          <span className="truncate">{iface.name.split(".").pop()}</span>
+                        </button>
+                      ))}
+                    </div>
+                  )}
+                </div>
+              ))}
+            </div>
+          </ScrollArea>
+        </div>
+
+        {/* Right: Detail */}
+        <div className="rounded-lg border border-border bg-card overflow-hidden flex flex-col">
+          {activeIface ? (
+            <ScrollArea className="flex-1">
+              <div className="p-4 space-y-6">
+                <div>
+                  <h3 className="text-sm font-semibold text-foreground mb-1 font-mono">{activeIface.name}</h3>
+                  <span className="text-xs text-muted-foreground">{selectedPath}</span>
+                </div>
+
+                {/* Properties */}
+                {Object.keys(activeIface.properties).length > 0 && (() => {
+                  const { schema, data } = propertySchema(activeIface.properties);
+                  return (
+                    <div>
+                      <h4 className="text-xs font-medium text-muted-foreground uppercase tracking-wider mb-3">Properties</h4>
+                      <SchemaRenderer schema={schema as any} data={data} onChange={() => {}} />
+                    </div>
+                  );
+                })()}
+
+                {/* Methods */}
+                {activeIface.methods.length > 0 && (
+                  <div>
+                    <h4 className="text-xs font-medium text-muted-foreground uppercase tracking-wider mb-3">Methods</h4>
+                    <div className="space-y-3">
+                      {activeIface.methods.map((method) => {
+                        const inArgs = method.args.filter((a) => a.direction === "in");
+                        const outArgs = method.args.filter((a) => a.direction === "out");
+                        const schema = methodSchema(method);
+                        const result = callResults[method.name];
+                        return (
+                          <div key={method.name} className="rounded-md border border-border p-3 space-y-2">
+                            <div className="flex items-center justify-between">
+                              <div className="flex items-center gap-2">
+                                <span className="font-mono text-sm font-semibold text-foreground">{method.name}</span>
+                                {outArgs.map((a, i) => (
+                                  <Badge key={i} variant="outline" className="text-[10px] font-mono">→ {a.type}</Badge>
+                                ))}
+                              </div>
+                              <button
+                                onClick={() => handleExecute(method)}
+                                className="flex items-center gap-1 px-3 py-1.5 rounded-md bg-primary text-primary-foreground text-xs font-medium hover:bg-primary/90 transition-colors"
+                              >
+                                <Play className="h-3 w-3" /> Execute
+                              </button>
+                            </div>
+                            {inArgs.length > 0 && (
+                              <SchemaRenderer
+                                schema={schema as any}
+                                data={methodArgs[method.name] ?? {}}
+                                onChange={(v) => setMethodArgs((p) => ({ ...p, [method.name]: v as Record<string, unknown> }))}
+                              />
+                            )}
+                            {result && (
+                              <pre className="font-mono text-xs bg-muted/30 rounded-md p-3 overflow-auto max-h-32 whitespace-pre-wrap text-muted-foreground">
+                                {JSON.stringify(result, null, 2)}
+                              </pre>
+                            )}
+                          </div>
+                        );
+                      })}
+                    </div>
+                  </div>
+                )}
+
+                {/* Signals */}
+                {activeIface.signals.length > 0 && (
+                  <div>
+                    <h4 className="text-xs font-medium text-muted-foreground uppercase tracking-wider mb-2">Signals</h4>
+                    <div className="flex flex-wrap gap-1.5">
+                      {activeIface.signals.map((s) => (
+                        <Badge key={s} variant="outline" className="text-[10px] font-mono">{s}</Badge>
+                      ))}
+                    </div>
+                  </div>
+                )}
+              </div>
+            </ScrollArea>
+          ) : (
+            <div className="flex-1 flex items-center justify-center text-sm text-muted-foreground">Select an object from the tree</div>
+          )}
+        </div>
       </div>
-      <EventTape events={events} />
+
+      <div className="mt-6">
+        <EventTape events={events} />
+      </div>
     </>
   );
 }
