@@ -198,7 +198,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
       <main
         className={cn(
           "min-h-0 overflow-y-auto overflow-x-hidden p-3 md:p-4 space-y-6",
-          isChat && "flex flex-col overflow-hidden p-0 space-y-0",
+          isFullHeight && "flex flex-col overflow-hidden p-0 space-y-0",
         )}
         style={{ gridArea: "content" }}
       >
