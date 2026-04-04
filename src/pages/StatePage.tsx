@@ -281,26 +281,35 @@ export default function StatePage() {
   const { latestState, events } = useEventStore();
   const [search, setSearch] = useState("");
   const [expandedPlugins, setExpandedPlugins] = useState<Record<string, boolean>>({ net: true });
-  const [pluginState, setPluginState] = useState<Record<string, Record<string, unknown>>>(MOCK_STATE);
+  const [localOverrides, setLocalOverrides] = useState<Record<string, Record<string, unknown>>>({});
 
   const stateUpdates = useMemo(
     () => events.filter((e) => e.event === "state_update"),
     [events]
   );
 
-  // Merge live SSE state into plugin state
+  // Build plugin state: live store data → local overrides → defaults
   const mergedPluginState = useMemo(() => {
-    const merged = { ...pluginState };
-    for (const [key, value] of Object.entries(latestState)) {
-      // Try to map flat keys like "net:eth0:mtu" into plugin groups
-      const parts = key.split(":");
-      const pluginId = parts[0];
-      if (merged[pluginId] && parts.length >= 3) {
-        merged[pluginId] = { ...merged[pluginId], [parts[2]]: value };
+    const merged: Record<string, Record<string, unknown>> = {};
+    for (const plugin of PLUGIN_DEFS) {
+      const defaults = DEFAULT_STATE[plugin.id] ?? {};
+      // Pull live values: keys like "net.mtu", "net.ip_address", or "net:mtu"
+      const live: Record<string, unknown> = {};
+      for (const [key, value] of Object.entries(latestState)) {
+        const dotParts = key.split(".");
+        const colonParts = key.split(":");
+        if (dotParts[0] === plugin.id && dotParts.length >= 2) {
+          live[dotParts.slice(1).join(".")] = value;
+        } else if (colonParts[0] === plugin.id && colonParts.length >= 2) {
+          live[colonParts.slice(1).join(":")] = value;
+        } else if (key === plugin.id && typeof value === "object" && value !== null) {
+          Object.assign(live, value as Record<string, unknown>);
+        }
       }
+      merged[plugin.id] = { ...defaults, ...live, ...(localOverrides[plugin.id] ?? {}) };
     }
     return merged;
-  }, [pluginState, latestState]);
+  }, [latestState, localOverrides]);
 
   const togglePlugin = useCallback((id: string) => {
     setExpandedPlugins((prev) => ({ ...prev, [id]: !prev[id] }));
