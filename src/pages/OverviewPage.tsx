@@ -257,7 +257,7 @@ export default function OverviewPage() {
                 </Pill>
                 <div className="min-w-0 flex-1">
                   <div className="text-xs font-mono text-foreground truncate">{log.message}</div>
-                  <div className="text-[10px] text-muted-foreground">{log.source} · {new Date(log.timestamp).toLocaleTimeString()}</div>
+                  <div className="text-[10px] text-muted-foreground">{log.subsystem} · {new Date(log.time).toLocaleTimeString()}</div>
                 </div>
               </div>
             )) : (
