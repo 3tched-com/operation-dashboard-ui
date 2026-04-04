@@ -1,4 +1,5 @@
 import { Pill } from "@/components/shell/Primitives";
+import { GenerativeBlock, parseGenerativeBlocks } from "@/components/chat/GenerativeBlock";
 import { cn } from "@/lib/utils";
 
 export interface LocalMessage {
@@ -12,9 +13,10 @@ export interface LocalMessage {
 interface MessageBubbleProps {
   message: LocalMessage;
   onInspect: (data: unknown) => void;
+  onAction?: (action: string, payload: unknown) => void;
 }
 
-export function MessageBubble({ message, onInspect }: MessageBubbleProps) {
+export function MessageBubble({ message, onInspect, onAction }: MessageBubbleProps) {
   const isUser = message.role === "user";
   const isSystem = message.role === "system";
   const time = new Date(message.timestamp).toLocaleTimeString();
@@ -26,6 +28,9 @@ export function MessageBubble({ message, onInspect }: MessageBubbleProps) {
       </div>
     );
   }
+
+  // Parse generative UI blocks from assistant messages
+  const segments = !isUser ? parseGenerativeBlocks(message.content) : null;
 
   return (
     <div className={cn("flex gap-3", isUser && "flex-row-reverse")}>
@@ -40,7 +45,19 @@ export function MessageBubble({ message, onInspect }: MessageBubbleProps) {
           "rounded-lg px-4 py-2.5 text-sm",
           isUser ? "bg-primary/10 border border-primary/20 text-foreground" : "bg-card border border-border text-foreground",
         )}>
-          <div className="whitespace-pre-wrap">{message.content}</div>
+          {isUser || !segments ? (
+            <div className="whitespace-pre-wrap">{message.content}</div>
+          ) : (
+            <div className="space-y-3">
+              {segments.map((seg, i) =>
+                seg.type === "text" ? (
+                  <div key={i} className="whitespace-pre-wrap">{seg.text}</div>
+                ) : (
+                  <GenerativeBlock key={i} spec={seg.spec} onAction={onAction} />
+                )
+              )}
+            </div>
+          )}
         </div>
         {message.toolCalls?.map((tc) => (
           <button
