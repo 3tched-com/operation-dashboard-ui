@@ -33,7 +33,7 @@ export default function AgentsPage() {
                     <div className="text-sm font-medium text-foreground truncate">{a.name}</div>
                     <div className="text-[11px] text-muted-foreground font-mono">{a.model}</div>
                   </div>
-                  <Pill variant={a.status === "running" ? "ok" : a.status === "error" ? "danger" : "default"}>{a.status}</Pill>
+                  <Pill variant={a.status === "running" ? "ok" : (a.status as string) === "error" ? "danger" : "default"}>{a.status}</Pill>
                 </div>
               </button>
             ))}
