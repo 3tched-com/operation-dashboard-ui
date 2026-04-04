@@ -3,7 +3,7 @@ import { useLocation, useNavigate } from "react-router-dom";
 import {
   MessageSquare, BarChart3, Link2, Radio, FileText, Clock,
   Folder, Zap, Monitor, Settings, Bug, ScrollText, Sun, Moon, Laptop,
-  Menu, Shield, GitBranch,
+  Menu, Shield, GitBranch, Orbit,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { StatusDot, Pill } from "@/components/shell/Primitives";
@@ -20,6 +20,7 @@ const NAV_GROUPS = [
     label: "Control",
     items: [
       { title: "Overview", path: "/", icon: BarChart3 },
+      { title: "Orchestration", path: "/orchestration", icon: Orbit },
       { title: "Services", path: "/services", icon: Link2 },
       { title: "Sessions", path: "/sessions", icon: FileText },
       { title: "LLM", path: "/llm", icon: Radio },
