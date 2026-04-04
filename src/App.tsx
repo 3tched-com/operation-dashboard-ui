@@ -8,6 +8,7 @@ import { useEventStream } from "@/hooks/use-event-stream";
 import OverviewPage from "./pages/OverviewPage";
 import ChatPage from "./pages/ChatPage";
 import ToolsPage from "./pages/ToolsPage";
+import RoutableModelsPage from "./pages/RoutableModelsPage";
 import AgentsPage from "./pages/AgentsPage";
 import LlmPage from "./pages/LlmPage";
 import ServicesPage from "./pages/ServicesPage";
@@ -33,6 +34,7 @@ function AppInner() {
         <Route path="/chat" element={<ChatPage />} />
         <Route path="/tools" element={<ToolsPage />} />
         <Route path="/agents" element={<AgentsPage />} />
+        <Route path="/models" element={<RoutableModelsPage />} />
         <Route path="/llm" element={<LlmPage />} />
         <Route path="/services" element={<ServicesPage />} />
         <Route path="/security" element={<SecurityPage />} />
