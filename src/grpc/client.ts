@@ -51,14 +51,25 @@ async function grpcUnary<TReq, TResp>(
   request: TReq,
 ): Promise<TResp> {
   const url = `${GRPC_BASE_URL}/${service}/${method}`;
+  const payload = JSON.stringify(request);
+  // Encode JSON payload into a gRPC-web binary frame:
+  // 1 byte flags (0x00 = uncompressed) + 4 bytes big-endian length + payload
+  const encoder = new TextEncoder();
+  const payloadBytes = encoder.encode(payload);
+  const frame = new Uint8Array(5 + payloadBytes.length);
+  frame[0] = 0x00; // no compression
+  const dv = new DataView(frame.buffer);
+  dv.setUint32(1, payloadBytes.length, false);
+  frame.set(payloadBytes, 5);
+
   const res = await fetch(url, {
     method: "POST",
     headers: {
-      "Content-Type": "application/grpc-web+json",
-      "Accept": "application/grpc-web+json",
+      "Content-Type": "application/grpc-web",
+      "Accept": "application/grpc-web",
       "x-grpc-web": "1",
     },
-    body: JSON.stringify(request),
+    body: frame,
   });
 
   if (!res.ok) {
@@ -66,12 +77,36 @@ async function grpcUnary<TReq, TResp>(
     throw new Error(`gRPC ${service}/${method} failed: ${res.status} ${text}`);
   }
 
-  const body = await res.text();
-  // tonic-web JSON format: the body is the JSON-encoded response
-  // with potential gRPC trailers appended after a null byte
-  const jsonEnd = body.indexOf("\0");
-  const jsonStr = jsonEnd >= 0 ? body.slice(0, jsonEnd) : body;
-  return JSON.parse(jsonStr) as TResp;
+  const buf = new Uint8Array(await res.arrayBuffer());
+  // Parse gRPC-web framed response: skip 5-byte header, read JSON body
+  // Tonic-web with JSON codec returns JSON inside the binary frame
+  const frames = parseGrpcWebFrames(buf);
+  if (frames.length === 0) {
+    throw new Error(`gRPC ${service}/${method}: empty response`);
+  }
+  const decoder = new TextDecoder();
+  const body = decoder.decode(frames[0]);
+  return JSON.parse(body) as TResp;
+}
+
+/** Parse gRPC-web binary frames from a response buffer */
+function parseGrpcWebFrames(buf: Uint8Array): Uint8Array[] {
+  const frames: Uint8Array[] = [];
+  let offset = 0;
+  while (offset < buf.length) {
+    if (offset + 5 > buf.length) break;
+    const flags = buf[offset];
+    const dv = new DataView(buf.buffer, buf.byteOffset + offset + 1, 4);
+    const len = dv.getUint32(0, false);
+    offset += 5;
+    if (offset + len > buf.length) break;
+    // flags & 0x80 = trailers frame, skip those
+    if (!(flags & 0x80)) {
+      frames.push(buf.slice(offset, offset + len));
+    }
+    offset += len;
+  }
+  return frames;
 }
 
 /**
@@ -87,14 +122,23 @@ function grpcServerStream<TReq, TResp>(
   const controller = new AbortController();
   const url = `${GRPC_BASE_URL}/${service}/${method}`;
 
+  const payload = JSON.stringify(request);
+  const encoder = new TextEncoder();
+  const payloadBytes = encoder.encode(payload);
+  const frame = new Uint8Array(5 + payloadBytes.length);
+  frame[0] = 0x00;
+  const frameDv = new DataView(frame.buffer);
+  frameDv.setUint32(1, payloadBytes.length, false);
+  frame.set(payloadBytes, 5);
+
   const responsePromise = fetch(url, {
     method: "POST",
     headers: {
-      "Content-Type": "application/grpc-web+json",
-      "Accept": "application/grpc-web+json",
+      "Content-Type": "application/grpc-web",
+      "Accept": "application/grpc-web",
       "x-grpc-web": "1",
     },
-    body: JSON.stringify(request),
+    body: frame,
     signal: controller.signal,
   });
 
@@ -108,38 +152,37 @@ function grpcServerStream<TReq, TResp>(
         }
 
         const reader = res.body.getReader();
-        const decoder = new TextDecoder();
-        let buffer = "";
+        let pending = new Uint8Array(0);
 
         while (true) {
           const { done, value } = await reader.read();
           if (done) break;
 
-          buffer += decoder.decode(value, { stream: true });
+          // Append new data to pending buffer
+          const merged = new Uint8Array(pending.length + value.length);
+          merged.set(pending);
+          merged.set(value, pending.length);
+          pending = merged;
 
-          // Process newline-delimited JSON messages
-          let newlineIdx: number;
-          while ((newlineIdx = buffer.indexOf("\n")) >= 0) {
-            const line = buffer.slice(0, newlineIdx).trim();
-            buffer = buffer.slice(newlineIdx + 1);
-            if (line.length === 0) continue;
+          // Parse complete gRPC-web frames from buffer
+          while (pending.length >= 5) {
+            const flags = pending[0];
+            const dv = new DataView(pending.buffer, pending.byteOffset + 1, 4);
+            const len = dv.getUint32(0, false);
+            if (pending.length < 5 + len) break; // incomplete frame
 
-            try {
-              const msg = JSON.parse(line) as TResp;
-              ctrl.enqueue(msg);
-            } catch {
-              // Skip non-JSON lines (trailers, etc.)
+            if (!(flags & 0x80)) {
+              // Data frame — decode JSON
+              const decoder = new TextDecoder();
+              const body = decoder.decode(pending.slice(5, 5 + len));
+              try {
+                const msg = JSON.parse(body) as TResp;
+                ctrl.enqueue(msg);
+              } catch {
+                // non-JSON data frame
+              }
             }
-          }
-        }
-
-        // Process remaining buffer
-        if (buffer.trim().length > 0) {
-          try {
-            const msg = JSON.parse(buffer.trim()) as TResp;
-            ctrl.enqueue(msg);
-          } catch {
-            // trailing data
+            pending = pending.slice(5 + len);
           }
         }
 

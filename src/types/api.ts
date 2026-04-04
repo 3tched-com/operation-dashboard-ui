@@ -190,7 +190,8 @@ export type SseEventType =
   | "message"
   | "service_change"
   | "agent_status"
-  | "tool_call";
+  | "tool_call"
+  | "registry_event";
 
 export interface SseEvent<T = unknown> {
   type: SseEventType;
