@@ -171,7 +171,7 @@ export default function AgentsPage() {
         {COGNITIVE_AGENTS.map((agent) => (
           <Card key={agent.id}>
             <div className="flex items-start gap-3">
-              <StatusDot status={STATUS_MAP[agent.status]} className="mt-1.5" />
+              <StatusDot status={STATUS_DOT[agent.status]} className="mt-1.5" />
               <div className="flex-1 min-w-0">
                 <div className="flex items-center justify-between gap-2">
                   <h3 className="text-sm font-bold text-foreground truncate">{agent.name}</h3>
