@@ -212,7 +212,7 @@ export default function AgentsPage() {
         <DialogContent className="max-w-lg max-h-[80vh] overflow-y-auto">
           <DialogHeader>
             <DialogTitle className="flex items-center gap-2">
-              <StatusDot status={configAgent ? STATUS_MAP[configAgent.status] : "default"} />
+              <StatusDot status={configAgent ? STATUS_DOT[configAgent.status] : "ok"} />
               {configAgent?.name} Configuration
             </DialogTitle>
             <DialogDescription>{configAgent?.description}</DialogDescription>
