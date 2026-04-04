@@ -122,14 +122,23 @@ function grpcServerStream<TReq, TResp>(
   const controller = new AbortController();
   const url = `${GRPC_BASE_URL}/${service}/${method}`;
 
+  const payload = JSON.stringify(request);
+  const encoder = new TextEncoder();
+  const payloadBytes = encoder.encode(payload);
+  const frame = new Uint8Array(5 + payloadBytes.length);
+  frame[0] = 0x00;
+  const frameDv = new DataView(frame.buffer);
+  frameDv.setUint32(1, payloadBytes.length, false);
+  frame.set(payloadBytes, 5);
+
   const responsePromise = fetch(url, {
     method: "POST",
     headers: {
-      "Content-Type": "application/grpc-web+json",
-      "Accept": "application/grpc-web+json",
+      "Content-Type": "application/grpc-web",
+      "Accept": "application/grpc-web",
       "x-grpc-web": "1",
     },
-    body: JSON.stringify(request),
+    body: frame,
     signal: controller.signal,
   });
 
@@ -143,38 +152,37 @@ function grpcServerStream<TReq, TResp>(
         }
 
         const reader = res.body.getReader();
-        const decoder = new TextDecoder();
-        let buffer = "";
+        let pending = new Uint8Array(0);
 
         while (true) {
           const { done, value } = await reader.read();
           if (done) break;
 
-          buffer += decoder.decode(value, { stream: true });
+          // Append new data to pending buffer
+          const merged = new Uint8Array(pending.length + value.length);
+          merged.set(pending);
+          merged.set(value, pending.length);
+          pending = merged;
 
-          // Process newline-delimited JSON messages
-          let newlineIdx: number;
-          while ((newlineIdx = buffer.indexOf("\n")) >= 0) {
-            const line = buffer.slice(0, newlineIdx).trim();
-            buffer = buffer.slice(newlineIdx + 1);
-            if (line.length === 0) continue;
+          // Parse complete gRPC-web frames from buffer
+          while (pending.length >= 5) {
+            const flags = pending[0];
+            const dv = new DataView(pending.buffer, pending.byteOffset + 1, 4);
+            const len = dv.getUint32(0, false);
+            if (pending.length < 5 + len) break; // incomplete frame
 
-            try {
-              const msg = JSON.parse(line) as TResp;
-              ctrl.enqueue(msg);
-            } catch {
-              // Skip non-JSON lines (trailers, etc.)
+            if (!(flags & 0x80)) {
+              // Data frame — decode JSON
+              const decoder = new TextDecoder();
+              const body = decoder.decode(pending.slice(5, 5 + len));
+              try {
+                const msg = JSON.parse(body) as TResp;
+                ctrl.enqueue(msg);
+              } catch {
+                // non-JSON data frame
+              }
             }
-          }
-        }
-
-        // Process remaining buffer
-        if (buffer.trim().length > 0) {
-          try {
-            const msg = JSON.parse(buffer.trim()) as TResp;
-            ctrl.enqueue(msg);
-          } catch {
-            // trailing data
+            pending = pending.slice(5 + len);
           }
         }
 

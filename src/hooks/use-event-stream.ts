@@ -200,6 +200,74 @@ export function useEventStream() {
         // Stream creation failed
       }
 
+      // ── 5. ComponentRegistry.Watch — live agent/component discovery ───
+      try {
+        const { stream: regStream, abort: abortReg } = componentRegistry.watch({
+          componentTypes: [],
+          includeExisting: true,
+        });
+        aborts.push(abortReg);
+
+        const regReader = regStream.getReader();
+        (async () => {
+          try {
+            while (true) {
+              const { done, value } = await regReader.read();
+              if (done) break;
+              const evt = value as RegistryEvent;
+              const store = useEventStore.getState();
+              const comp = evt.component;
+
+              if (comp) {
+                // Maintain a running list of agents under latestState["agents"]
+                const existing = (store.latestState["agents"] as Array<Record<string, unknown>>) ?? [];
+                const idx = existing.findIndex((a) => a.id === comp.componentId);
+                const entry: Record<string, unknown> = {
+                  id: comp.componentId,
+                  name: comp.name,
+                  description: comp.description,
+                  status: comp.status === 1 ? "running" : comp.status === 2 ? "offline" : comp.status === 3 ? "offline" : "busy",
+                  capabilities: comp.capabilities ?? [],
+                  activeSessions: 0,
+                  memoryEntries: 0,
+                  configSchema: comp.schemaJson ? (() => { try { return JSON.parse(comp.schemaJson); } catch { return {}; } })() : {},
+                  configData: comp.metadata ?? {},
+                  componentType: comp.componentType,
+                  endpoint: comp.endpoint,
+                  version: comp.version,
+                  lastHeartbeat: comp.lastHeartbeat,
+                };
+
+                // Deregistered → remove; otherwise upsert
+                if (evt.eventType === 2 /* DEREGISTERED */) {
+                  store.updateState("agents", existing.filter((a) => a.id !== comp.componentId));
+                } else if (idx >= 0) {
+                  const updated = [...existing];
+                  updated[idx] = entry;
+                  store.updateState("agents", updated);
+                } else {
+                  store.updateState("agents", [...existing, entry]);
+                }
+              }
+
+              store.addEvent({
+                id: `reg-${evt.component?.componentId}-${Date.now()}`,
+                event: "registry_event",
+                ts: Date.now(),
+                payload: evt,
+              });
+              store.incrementEventCount("registry_event");
+            }
+          } catch (err) {
+            if (mounted && (err as Error).name !== "AbortError") {
+              useEventStore.getState().setError(`ComponentRegistry stream error: ${(err as Error).message}`);
+            }
+          }
+        })();
+      } catch {
+        // Stream creation failed
+      }
+
       abortsRef.current = aborts;
 
       // If no streams connected, schedule retry
