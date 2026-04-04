@@ -29,17 +29,6 @@ const EVENT_COLORS: Record<string, string> = {
   "config.change": "bg-orange-500/20 text-orange-400 border-orange-500/30",
 };
 
-const DEFAULT_BLOCKS: AuditBlock[] = [
-  { id: "blk-001", hash: "a3f8c2d1e5b7", prev_hash: "000000000000", timestamp: "2025-04-04T14:23:01Z", event_type: "security.auth", summary: "User authenticated via WireGuard peer", payload: { auth_mode: "wireguard", peer_public_key: "xR7k...Q2w=", ip: "100.64.1.15", role: "admin", session_id: "sess-7a3b" } },
-  { id: "blk-002", hash: "b7e4a1c9f3d6", prev_hash: "a3f8c2d1e5b7", timestamp: "2025-04-04T14:23:05Z", event_type: "agent.thought", agent: "net-guardian", summary: "Analyzed network anomaly on br-lan", payload: { thought_process: "Detected unusual ARP pattern from 10.10.0.15. Cross-referencing with known container IPs. The source matches ct-2 (privacy-router) which occasionally broadcasts ARP for WARP tunnel re-establishment. Classifying as benign.", reasoning_steps: ["1. ARP flood detected (>50 req/s)", "2. Source IP resolved to ct-2", "3. Pattern matches WARP reconnection behavior", "4. No unknown MAC addresses involved"], conclusion: "benign", confidence: 0.94 } },
-  { id: "blk-003", hash: "c1d5e8f2a4b9", prev_hash: "b7e4a1c9f3d6", timestamp: "2025-04-04T14:23:12Z", event_type: "agent.tool_call", agent: "net-guardian", summary: "Executed OVS flow inspection", payload: { tool: "ovs-ofctl dump-flows br-lan", args: { bridge: "br-lan", table: 0 }, result: { flow_count: 12, suspicious_flows: 0 }, duration_ms: 45 } },
-  { id: "blk-004", hash: "d9a2b6c4e7f1", prev_hash: "c1d5e8f2a4b9", timestamp: "2025-04-04T14:24:30Z", event_type: "dbus.schema.update", summary: "NetworkManager property changed", payload: { object_path: "/org/freedesktop/NetworkManager", interface: "org.freedesktop.NetworkManager", property: "Connectivity", old_value: 3, new_value: 4, label: "full connectivity restored" } },
-  { id: "blk-005", hash: "e3f7a8b1c5d2", prev_hash: "d9a2b6c4e7f1", timestamp: "2025-04-04T14:25:00Z", event_type: "network.bridge.update", summary: "Port added to br-priv", payload: { bridge: "br-priv", port: "veth-ct5", action: "add", vlan_tag: 30, ofport: 5 } },
-  { id: "blk-006", hash: "f1c4d7e9a2b5", prev_hash: "e3f7a8b1c5d2", timestamp: "2025-04-04T14:26:15Z", event_type: "state.mutation", summary: "XRay obfuscation level increased", payload: { plugin: "privacy-router", key: "xray.obfuscation_level", old_value: 2, new_value: 3, mutated_by: "operator", reason: "Increased censorship resistance for outbound traffic" } },
-  { id: "blk-007", hash: "a8b3c6d1e4f9", prev_hash: "f1c4d7e9a2b5", timestamp: "2025-04-04T14:27:00Z", event_type: "config.change", summary: "LLM temperature adjusted", payload: { section: "llm", key: "temperature", old_value: 0.7, new_value: 0.3, changed_by: "admin" } },
-  { id: "blk-008", hash: "b5d8e1f4a7c3", prev_hash: "a8b3c6d1e4f9", timestamp: "2025-04-04T14:28:45Z", event_type: "agent.thought", agent: "sec-sentinel", summary: "Evaluated TLS certificate expiry", payload: { thought_process: "Checked TLS certificate at /etc/ssl/certs/op-dbus.pem. Certificate expires in 23 days. This is within the 30-day warning threshold. Recommending renewal.", reasoning_steps: ["1. Read certificate metadata", "2. Expiry: 2025-04-27", "3. Threshold: 30 days", "4. Action: alert operator"], conclusion: "renewal_needed", confidence: 1.0 } },
-];
-
 export default function SecurityPage() {
   const { latestState } = useEventStore();
   const [searchQuery, setSearchQuery] = useState("");
@@ -47,14 +36,14 @@ export default function SecurityPage() {
 
   const liveStatus = useMemo(() => {
     const s = latestState["security.status"] ?? latestState["security:status"];
-    const defaults = { auth_mode: "WireGuard", tls_status: "active", total_blocks: DEFAULT_BLOCKS.length, qdrant_status: "connected", vectors_indexed: 1247 };
+    const defaults = { auth_mode: "—", tls_status: "unknown", total_blocks: 0, qdrant_status: "unknown", vectors_indexed: 0 };
     if (s && typeof s === "object") return { ...defaults, ...(s as Record<string, unknown>) };
     return defaults;
   }, [latestState]);
 
   const blocks = useMemo(() => {
     const live = latestState["security.audit_chain"] ?? latestState["audit:chain"];
-    const base = Array.isArray(live) ? (live as AuditBlock[]) : DEFAULT_BLOCKS;
+    const base = Array.isArray(live) ? (live as AuditBlock[]) : [];
     if (!searchQuery.trim()) return base;
     const q = searchQuery.toLowerCase();
     return base.filter((b) =>
