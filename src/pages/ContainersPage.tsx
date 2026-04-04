@@ -86,7 +86,7 @@ export default function ContainersPage() {
               <span className="font-mono text-sm font-semibold text-foreground">{ct.name}</span>
             </div>
             <div className="flex items-center gap-2">
-              <StatusDot status={statusColor[ct.status] ?? "muted"} />
+              <StatusDot status={statusColor[ct.status] ?? "offline"} />
               <Badge variant="outline" className="text-[10px] font-mono">{ct.status}</Badge>
             </div>
           </div>
