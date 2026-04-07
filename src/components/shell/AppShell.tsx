@@ -69,7 +69,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
   const { theme, toggleTheme } = useTheme();
   const { connected, health, lastError } = useEventStore();
 
-  const isFullHeight = location.pathname === "/chat" || location.pathname === "/workflows";
+  const isFullHeight = location.pathname === "/chat" || location.pathname === "/workflows" || location.pathname === "/accountability";
   const ThemeIcon = themeIcons[theme];
 
   const toggleGroup = (label: string) => {

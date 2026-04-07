@@ -275,6 +275,13 @@ import type {
   McpSubscribeRequest, McpEvent,
 } from "./types/mcp";
 
+import type {
+  SearchEpisodesRequest, SearchEpisodesResponse,
+  GetEpisodeRequest, GetEpisodeResponse,
+  CollectionStatsResponse,
+  ChatWithContextRequest, ChatWithContextResponse,
+} from "./types/accountability";
+
 // ═══════════════════════════════════════════════════════════════════════════
 // BRIDGE SERVICES (op-grpc-bridge)
 // ═══════════════════════════════════════════════════════════════════════════
@@ -825,6 +832,42 @@ export const mcpService = {
       "op.mcp.v1.McpService", "Subscribe", {
         eventTypes: req.eventTypes ?? [],
       },
+    );
+  },
+};
+
+// ── ChatbotAccountabilityService (operation.accountability.v1) ──────────────
+
+export const accountabilityService = {
+  searchEpisodes(req: SearchEpisodesRequest) {
+    return grpcUnary<SearchEpisodesRequest, SearchEpisodesResponse>(
+      "operation.accountability.v1.ChatbotAccountabilityService", "SearchEpisodes", {
+        query: req.query,
+        outcomeClass: req.outcomeClass ?? "",
+        pluginId: req.pluginId ?? "",
+        conversationId: req.conversationId ?? "",
+        timeRangeStart: req.timeRangeStart ?? "",
+        timeRangeEnd: req.timeRangeEnd ?? "",
+        limit: req.limit ?? 20,
+      },
+    );
+  },
+
+  getEpisode(req: GetEpisodeRequest) {
+    return grpcUnary<GetEpisodeRequest, GetEpisodeResponse>(
+      "operation.accountability.v1.ChatbotAccountabilityService", "GetEpisode", req,
+    );
+  },
+
+  getCollectionStats() {
+    return grpcUnary<Record<string, never>, CollectionStatsResponse>(
+      "operation.accountability.v1.ChatbotAccountabilityService", "GetCollectionStats", {},
+    );
+  },
+
+  chatWithContext(req: ChatWithContextRequest) {
+    return grpcUnary<ChatWithContextRequest, ChatWithContextResponse>(
+      "operation.accountability.v1.ChatbotAccountabilityService", "ChatWithContext", req,
     );
   },
 };
