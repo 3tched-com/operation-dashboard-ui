@@ -27,6 +27,9 @@ import OpenFlowPage from "./pages/OpenFlowPage";
 import KnowledgePage from "./pages/KnowledgePage";
 import GrpcDiagnosticsPage from "./pages/GrpcDiagnosticsPage";
 import AccountabilityPage from "./pages/AccountabilityPage";
+import BtrfsPage from "./pages/BtrfsPage";
+import DataStoresPage from "./pages/DataStoresPage";
+import EmbeddingPipelinePage from "./pages/EmbeddingPipelinePage";
 import NotFound from "./pages/NotFound";
 
 const queryClient = new QueryClient({
@@ -60,6 +63,9 @@ function AppInner() {
             <Route path="/knowledge" element={<KnowledgePage />} />
             <Route path="/grpc" element={<GrpcDiagnosticsPage />} />
             <Route path="/accountability" element={<AccountabilityPage />} />
+            <Route path="/btrfs" element={<BtrfsPage />} />
+            <Route path="/data-stores" element={<DataStoresPage />} />
+            <Route path="/embedding" element={<EmbeddingPipelinePage />} />
             <Route path="*" element={<NotFound />} />
       </Routes>
     </AppShell>

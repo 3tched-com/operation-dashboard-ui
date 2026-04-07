@@ -83,3 +83,27 @@ export interface ChatWithContextResponse {
   referencedEpisodes: string[]; // episode IDs referenced in reply
   model: string;
 }
+
+// ── Episode lifecycle streaming (§3) ────────────────────────────────────────
+
+export interface SubscribeEpisodesRequest {
+  pluginId?: string;
+  outcomeClassFilter?: string;
+  includeExisting?: boolean;
+}
+
+export interface EpisodeEvent {
+  eventType: "opened" | "closed" | "vectorized" | "pii_redacted";
+  episode: ReasoningEpisode;
+  vectorized: boolean;
+  queuePosition?: number;   // position in embedding queue
+}
+
+// ── PII management ──────────────────────────────────────────────────────────
+
+export interface GetPiiPolicyResponse {
+  redactionEnabled: boolean;
+  fieldsRedacted: string[];    // fields excluded from vector input
+  piiFlaggedCount: number;
+  lastFlaggedAt?: string;
+}
