@@ -210,7 +210,7 @@ export default function BtrfsPage() {
                 </span>
               </div>
               <div className="flex gap-4 text-[10px] text-muted-foreground">
-                <span>Last sent: {snap => snap.lastSentSnapshotId ? <span className="font-mono">{s.lastSentSnapshotId}</span> : "never"}</span>
+                <span>Last sent: <span className="font-mono">{s.lastSentSnapshotId || "never"}</span></span>
                 <span>At: {new Date(s.lastSentAt).toLocaleString()}</span>
                 {s.bytesTransferred > 0 && <span>Transferred: {formatBytes(s.bytesTransferred)}</span>}
               </div>
