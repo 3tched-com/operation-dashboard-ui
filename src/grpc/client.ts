@@ -275,6 +275,13 @@ import type {
   McpSubscribeRequest, McpEvent,
 } from "./types/mcp";
 
+import type {
+  SearchEpisodesRequest, SearchEpisodesResponse,
+  GetEpisodeRequest, GetEpisodeResponse,
+  CollectionStatsResponse,
+  ChatWithContextRequest, ChatWithContextResponse,
+} from "./types/accountability";
+
 // ═══════════════════════════════════════════════════════════════════════════
 // BRIDGE SERVICES (op-grpc-bridge)
 // ═══════════════════════════════════════════════════════════════════════════
