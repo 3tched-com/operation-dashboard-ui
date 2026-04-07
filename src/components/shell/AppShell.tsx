@@ -34,9 +34,11 @@ const NAV_GROUPS = [
       { title: "Tools", path: "/tools", icon: Zap },
       { title: "Workflows", path: "/workflows", icon: GitBranch },
       { title: "Security", path: "/security", icon: Shield },
-      { title: "Accountability", path: "/accountability", icon: Shield },
+      { title: "Accountability", path: "/accountability", icon: ScrollText },
       { title: "Skills", path: "/skills", icon: ScrollText },
       { title: "Knowledge", path: "/knowledge", icon: Brain },
+      { title: "Embedding Pipeline", path: "/embedding", icon: Orbit },
+    ],
     ],
   },
   {
@@ -46,6 +48,8 @@ const NAV_GROUPS = [
       { title: "Privacy Network", path: "/privacy-network", icon: Globe },
       { title: "Open vSwitch", path: "/ovs", icon: Network },
       { title: "OpenFlow", path: "/openflow", icon: Workflow },
+      { title: "BTRFS Storage", path: "/btrfs", icon: Monitor },
+      { title: "Data Stores", path: "/data-stores", icon: Monitor },
     ],
   },
   {
