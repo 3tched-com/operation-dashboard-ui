@@ -248,7 +248,7 @@ function EpisodeCard({
               {(episode.similarity * 100).toFixed(1)}% match
             </span>
             {episode.piiFlagged && (
-              <Shield className="h-3 w-3 text-amber-500" />
+              <Shield className="h-3 w-3 text-warning" />
             )}
           </div>
           <p className="text-sm text-foreground line-clamp-2">
