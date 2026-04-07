@@ -4,7 +4,7 @@ export {
   ovsdbMirror, runtimeMirror, componentRegistry,
   // Domain services
   mailService, privacyService, registrationService,
-  serviceManager, mcpService,
+  serviceManager, mcpService, accountabilityService,
   // Transport
   getTransport, resetTransport,
 } from "./client";
