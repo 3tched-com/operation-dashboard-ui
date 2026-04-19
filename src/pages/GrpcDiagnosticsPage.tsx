@@ -160,6 +160,13 @@ export default function GrpcDiagnosticsPage() {
 
   /* ── Stream probe runner ─────────────────────────────────────────────── */
 
+  /**
+   * If the stream opens cleanly but no first event arrives within the grace
+   * period, treat it as connected/idle ("ok, waiting for events") rather than
+   * leaving the probe spinning forever.
+   */
+  const STREAM_IDLE_GRACE_MS = 2500;
+
   const runStreamProbe = useCallback((index: number) => {
     const probe = INITIAL_STREAM_PROBES[index];
     const key = probe.name;
@@ -172,6 +179,7 @@ export default function GrpcDiagnosticsPage() {
 
     const start = performance.now();
     let gotFirst = false;
+    let idleTimer: ReturnType<typeof setTimeout> | null = null;
 
     try {
       let result: { stream: ReadableStream<unknown>; abort: () => void };
@@ -197,6 +205,17 @@ export default function GrpcDiagnosticsPage() {
 
       streamAbortsRef.current.set(key, result.abort);
 
+      // Promote to "ok (idle)" after the grace period if nothing arrived.
+      idleTimer = setTimeout(() => {
+        if (!gotFirst) {
+          setStreamProbes((prev) => prev.map((p, i) =>
+            i === index && p.status === "running"
+              ? { ...p, status: "ok" }
+              : p,
+          ));
+        }
+      }, STREAM_IDLE_GRACE_MS);
+
       const reader = result.stream.getReader();
       (async () => {
         try {
@@ -208,6 +227,7 @@ export default function GrpcDiagnosticsPage() {
             }
             if (!gotFirst) {
               gotFirst = true;
+              if (idleTimer) { clearTimeout(idleTimer); idleTimer = null; }
               const firstMs = Math.round(performance.now() - start);
               setStreamProbes((prev) => prev.map((p, i) => i === index ? { ...p, status: "ok", firstMessageMs: firstMs, messagesReceived: 1 } : p));
             } else {
@@ -215,12 +235,14 @@ export default function GrpcDiagnosticsPage() {
             }
           }
         } catch (err) {
+          if (idleTimer) { clearTimeout(idleTimer); idleTimer = null; }
           if ((err as Error).name !== "AbortError") {
             setStreamProbes((prev) => prev.map((p, i) => i === index ? { ...p, status: "error", error: (err as Error).message } : p));
           }
         }
       })();
     } catch (err) {
+      if (idleTimer) { clearTimeout(idleTimer); idleTimer = null; }
       setStreamProbes((prev) => prev.map((p, i) => i === index ? { ...p, status: "error", error: (err as Error).message } : p));
     }
   }, []);
